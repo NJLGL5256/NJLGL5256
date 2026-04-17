@@ -1,0 +1,26 @@
+name: Financial Governance Policy Gates
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  governance:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install ripgrep
+        run: sudo apt-get update && sudo apt-get install -y ripgrep
+
+      - name: Run policy gates
+        run: ./scripts/financial_policy_gate.sh
+
+      - name: Upload readiness report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: financial-readiness-report
+          path: financial-readiness-report.txt
