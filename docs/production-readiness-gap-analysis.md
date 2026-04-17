@@ -32,12 +32,15 @@ Target state: event-driven, ledger-first, audit-native institutional fintech pla
 2. Added formal readiness gap report.
 3. Added CI governance workflow that executes policy gates and emits a readiness report artifact.
 4. Added policy gate script that computes required production readiness states and fails build when blockers are present.
+5. Added multi-repository policy scanning modes so governance checks can be executed across sibling repositories in a shared workspace.
 
 ## CI/CD enforcement plan (repository-level bootstrap)
 1. Trigger on PRs and pushes to `main`.
 2. Run policy gate script in strict mode.
 3. Persist machine-readable readiness report (`financial-readiness-report.txt`) as artifact.
 4. Block merge/deploy when required states are false.
+5. Use `SCAN_MODE=paths` or `SCAN_MODE=workspace` when validating cross-repository governance readiness in orchestration jobs.
+6. Enforce runtime credential prechecks in CI by enabling `CREDENTIAL_ENFORCEMENT=true` and providing `REQUIRED_CREDENTIAL_ENVS` (for example: `OPENAI_API_KEY,AZURE_OPENAI_API_KEY`).
 
 ## Ledger and event consistency validation strategy (forward path)
 When service repositories are available, enforce:
@@ -52,3 +55,19 @@ When service repositories are available, enforce:
 - **Critical:** inability to reconstruct system state for investigations/compliance.
 - **High:** deployment without policy gates allows regressions and unsafe integrations.
 - **High:** absence of integration boundary increases payment failure blast radius.
+
+## Credential readiness enforcement
+The policy gate now supports credential presence checks so CI can fail early before integration or deployment stages.
+
+- Set `CREDENTIAL_ENFORCEMENT=true` to require credentials during gate execution.
+- Set `REQUIRED_CREDENTIAL_ENVS` to a comma-separated list of required environment variables.
+- The report records per-credential `PASS [global]` / `FAIL [global]` entries without exposing secret values.
+
+Example:
+
+```bash
+CREDENTIAL_ENFORCEMENT=true \
+REQUIRED_CREDENTIAL_ENVS="OPENAI_API_KEY,AZURE_OPENAI_API_KEY" \
+STRICT_MODE=true \
+./scripts/financial_policy_gate.sh
+```

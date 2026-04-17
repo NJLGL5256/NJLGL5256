@@ -1,10 +1,27 @@
-- 👋 Hi, I’m @NJLGL5256
-- 👀 I’m interested in ...
-- 🌱 I’m currently learning ...
-- 💞️ I’m looking to collaborate on ...
-- 📫 How to reach me ...
+# NJLGL5256
 
-<!---
-NJLGL5256/NJLGL5256 is a ✨ special ✨ repository because its `README.md` (this file) appears on your GitHub profile.
-You can click the Preview link to take a look at your changes.
---->
+This repository contains production-readiness governance checks and supporting documentation.
+
+## Governance gate
+
+Run the financial policy gate:
+
+```bash
+./scripts/financial_policy_gate.sh
+```
+
+Run tests:
+
+```bash
+./tests/test_financial_policy_gate.sh
+```
+
+## AutoGen Studio example
+
+A credential-aware AutoGen weather agent example is available at:
+
+- `python/packages/autogen-studio/examples/weather_agent.py`
+
+Credential loading helper:
+
+- `python/packages/autogen-studio/autogen_studio/credential_loader.py`
