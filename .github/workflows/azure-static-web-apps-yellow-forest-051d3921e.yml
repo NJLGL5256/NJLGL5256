@@ -11,7 +11,7 @@ on:
 
 jobs:
   classify_changes:
-    if: github.event_name == 'pull_request' && github.event.action != 'closed'
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
     runs-on: ubuntu-latest
     name: Classify deployment changes
     permissions:
@@ -29,11 +29,19 @@ jobs:
       - name: Detect deployable web changes
         id: changes
         env:
+          EVENT_NAME: ${{ github.event_name }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         shell: bash
         run: |
           set -euo pipefail
+
+          if [[ "$EVENT_NAME" == "push" ]]; then
+            echo "deployable=true" >> "$GITHUB_OUTPUT"
+            echo "Main-branch push detected; preserving the existing deployment path."
+            exit 0
+          fi
+
           git diff --name-only --diff-filter=ACMRT "$BASE_SHA" "$HEAD_SHA" > changed-files.txt
 
           if grep -Eq '^(index\.html|404\.html|assets/|public/|src/|app/|pages/|static/|package\.json|package-lock\.json|npm-shrinkwrap\.json|vite\.config\.(js|mjs|ts)|next\.config\.(js|mjs|ts)|astro\.config\.(js|mjs|ts))' changed-files.txt; then
@@ -45,7 +53,7 @@ jobs:
           fi
 
   validate_configuration:
-    if: github.event_name == 'pull_request' && github.event.action != 'closed'
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
     needs: classify_changes
     runs-on: ubuntu-latest
     name: Validate Azure workflow configuration
@@ -73,11 +81,7 @@ jobs:
           echo "Validation passed: a deployment token is configured for deployable web changes."
 
   build_and_deploy_job:
-    if: |
-      github.event_name == 'push' ||
-      (github.event_name == 'pull_request' &&
-       github.event.action != 'closed' &&
-       needs.classify_changes.outputs.deployable == 'true')
+    if: needs.classify_changes.outputs.deployable == 'true'
     needs: [classify_changes, validate_configuration]
     runs-on: ubuntu-latest
     name: Build and Deploy Job
