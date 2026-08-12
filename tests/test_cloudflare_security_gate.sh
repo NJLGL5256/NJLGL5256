@@ -43,7 +43,11 @@ CFG
 
   if [[ "$inject_secret" == "true" ]]; then
     mkdir -p "$repo_root/app"
-    echo 'AWS_KEY="AKIAABCDEFGHIJKLMNOP"' > "$repo_root/app/secrets.py"
+    # Assemble the documented synthetic fixture only at runtime so repository scanners
+    # do not mistake test data for a live credential.
+    aws_fixture_prefix='AKIA'
+    aws_fixture_suffix='ABCDEFGHIJKLMNOP'
+    printf 'AWS_KEY="%s%s"\n' "$aws_fixture_prefix" "$aws_fixture_suffix" > "$repo_root/app/secrets.py"
   fi
 }
 
