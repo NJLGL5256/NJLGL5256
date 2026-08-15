@@ -1,0 +1,54 @@
+{
+  "schema_version": "1.0",
+  "record_type": "banking_evidence_register",
+  "defaults": {
+    "verification_status": "NOT_VERIFIED",
+    "execution_status": "NOT_AUTHORIZED",
+    "production_status": "BLOCKED",
+    "human_approval_required": true
+  },
+  "prohibited_public_fields": [
+    "full_account_number",
+    "routing_number",
+    "delivery_instructions",
+    "credential",
+    "token",
+    "signature",
+    "tax_identifier",
+    "unredacted_statement",
+    "position_quantity",
+    "cash_balance"
+  ],
+  "required_record_fields": [
+    "evidence_id",
+    "evidence_type",
+    "issuer_role",
+    "legal_owner_redacted",
+    "account_reference_masked",
+    "as_of_date",
+    "received_date",
+    "source_system",
+    "private_evidence_locator",
+    "sha256",
+    "preparer",
+    "reviewer",
+    "verification_status",
+    "exception_id",
+    "retention_class",
+    "supersedes"
+  ],
+  "allowed_verification_statuses": [
+    "NOT_VERIFIED",
+    "PARTIALLY_VERIFIED",
+    "VERIFIED",
+    "EXCEPTION_OPEN",
+    "REJECTED",
+    "SUPERSEDED"
+  ],
+  "verification_rules": [
+    "A request, agreement, directory entry, market-data record, invoice, or delivery route does not establish current custody or cash.",
+    "VERIFIED requires attributable source evidence, defined acceptance testing, named reviewer, and completed integrity hash.",
+    "An absent record is not evidence that an account, asset, obligation, or exception does not exist.",
+    "No source evidence may be committed to a public repository."
+  ]
+}

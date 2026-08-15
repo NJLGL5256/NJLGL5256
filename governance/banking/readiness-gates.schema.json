@@ -1,0 +1,55 @@
+{
+  "schema_version": "1.0",
+  "record_type": "banking_readiness_decision",
+  "accountable_owner": "Nicholas James Lee Gray",
+  "defaults": {
+    "custodian_recognition": "NOT_VERIFIED",
+    "holdings_verification": "NOT_VERIFIED",
+    "transfer_settlement": "NOT_VERIFIED",
+    "cash_availability": "NOT_VERIFIED",
+    "accounting_reconciliation": "NOT_VERIFIED",
+    "operational_controls": "NOT_VERIFIED",
+    "independent_review": "NOT_VERIFIED",
+    "financial_execution_authorized": false,
+    "production_authorized": false
+  },
+  "required_gates": [
+    {
+      "gate_id": "BR-01",
+      "name": "entity_authority",
+      "requires": ["governing_records", "ownership_or_control_review", "signer_authority", "account_title_match"]
+    },
+    {
+      "gate_id": "BR-02",
+      "name": "custodian_recognition",
+      "requires": ["institution_confirmation", "current_account_status", "restrictions", "verified_contact_channel"]
+    },
+    {
+      "gate_id": "BR-03",
+      "name": "holdings",
+      "requires": ["current_position_record", "asset_identifier", "quantity", "settlement_state", "restrictions"]
+    },
+    {
+      "gate_id": "BR-04",
+      "name": "cash",
+      "requires": ["settled_cash", "restricted_cash", "unsettled_cash", "withdrawable_cash", "institution_confirmation"]
+    },
+    {
+      "gate_id": "BR-05",
+      "name": "three_way_reconciliation",
+      "requires": ["custodian_record", "settlement_record_if_applicable", "general_ledger", "exception_disposition"]
+    },
+    {
+      "gate_id": "BR-06",
+      "name": "operational_readiness",
+      "requires": ["least_privilege", "dual_control", "logging", "recovery_test", "reconciliation_test", "rollback_plan"]
+    },
+    {
+      "gate_id": "BR-07",
+      "name": "final_approval",
+      "requires": ["qualified_reviews", "closed_material_exceptions", "exact_action_packet", "named_human_approval"]
+    }
+  ],
+  "decision_rule": "Production and financial execution remain blocked unless every applicable gate is VERIFIED and the exact action receives separate human approval.",
+  "approval_limit": "This schema does not authorize external communication, evidence transmission, account changes, securities activity, money movement, deployment, or a compliance claim."
+}
