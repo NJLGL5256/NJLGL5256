@@ -10,49 +10,120 @@ on:
       - main
 
 jobs:
-  build_and_deploy_job:
+  classify_changes:
     if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
+    runs-on: ubuntu-latest
+    name: Classify deployment changes
+    permissions:
+      contents: read
+    outputs:
+      deployable: ${{ steps.changes.outputs.deployable }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: false
+          lfs: false
+
+      - name: Detect deployable web changes
+        id: changes
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "$EVENT_NAME" == "push" ]]; then
+            echo "deployable=true" >> "$GITHUB_OUTPUT"
+            echo "Main-branch push detected; preserving the existing deployment path."
+            exit 0
+          fi
+
+          git diff --name-only --diff-filter=ACMRT "$BASE_SHA" "$HEAD_SHA" > changed-files.txt
+
+          if grep -Eq '^(index\.html|404\.html|assets/|public/|src/|app/|pages/|static/|package\.json|package-lock\.json|npm-shrinkwrap\.json|vite\.config\.(js|mjs|ts)|next\.config\.(js|mjs|ts)|astro\.config\.(js|mjs|ts))' changed-files.txt; then
+            echo "deployable=true" >> "$GITHUB_OUTPUT"
+            echo "Deployable web changes detected."
+          else
+            echo "deployable=false" >> "$GITHUB_OUTPUT"
+            echo "Documentation, governance, or workflow-only changes detected; Azure deployment is skipped."
+          fi
+
+  validate_configuration:
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
+    needs: classify_changes
+    runs-on: ubuntu-latest
+    name: Validate Azure workflow configuration
+    permissions:
+      contents: read
+    env:
+      AZURE_STATIC_WEB_APPS_API_TOKEN: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_YELLOW_FOREST_051D3921E }}
+    steps:
+      - name: Report deployment decision
+        env:
+          DEPLOYABLE: ${{ needs.classify_changes.outputs.deployable }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$DEPLOYABLE" != "true" ]]; then
+            echo "Validation passed: no deployable web changes were detected."
+            exit 0
+          fi
+
+          if [[ -z "$AZURE_STATIC_WEB_APPS_API_TOKEN" ]]; then
+            echo "::error::Azure Static Web Apps deployment token is not configured. Revalidate the existing GitHub secret before deployment."
+            exit 1
+          fi
+
+          echo "Validation passed: a deployment token is configured for deployable web changes."
+
+  build_and_deploy_job:
+    if: needs.classify_changes.outputs.deployable == 'true'
+    needs: [classify_changes, validate_configuration]
     runs-on: ubuntu-latest
     name: Build and Deploy Job
     permissions:
-       id-token: write
-       contents: read
+      contents: read
     steps:
-      - uses: actions/checkout@v3
+      - name: Check out repository
+        uses: actions/checkout@v4
         with:
           submodules: true
           lfs: false
-      - name: Install OIDC Client from Core Package
-        run: npm install @actions/core@1.6.0 @actions/http-client
-      - name: Get Id Token
-        uses: actions/github-script@v6
-        id: idtoken
-        with:
-           script: |
-               const coredemo = require('@actions/core')
-               return await coredemo.getIDToken()
-           result-encoding: string
-      - name: Build And Deploy
+
+      - name: Build and deploy
         id: builddeploy
         uses: Azure/static-web-apps-deploy@v1
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_YELLOW_FOREST_051D3921E }}
           action: "upload"
-          ###### Repository/Build Configurations - These values can be configured to match your app requirements. ######
-          # For more information regarding Static Web App workflow configurations, please visit: https://aka.ms/swaworkflowconfig
-          app_location: "/" # App source code path
-          api_location: "" # Api source code path - optional
-          output_location: "" # Built app content directory - optional
-          github_id_token: ${{ steps.idtoken.outputs.result }}
-          ###### End of Repository/Build Configurations ######
+          app_location: "/"
+          api_location: ""
+          output_location: ""
 
   close_pull_request_job:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
     runs-on: ubuntu-latest
     name: Close Pull Request Job
+    permissions:
+      contents: read
     steps:
-      - name: Close Pull Request
-        id: closepullrequest
+      - name: Validate deployment token
+        env:
+          AZURE_STATIC_WEB_APPS_API_TOKEN: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_YELLOW_FOREST_051D3921E }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "$AZURE_STATIC_WEB_APPS_API_TOKEN" ]]; then
+            echo "::error::Azure Static Web Apps deployment token is not configured; the preview environment cannot be closed."
+            exit 1
+          fi
+
+      - name: Close pull request environment
         uses: Azure/static-web-apps-deploy@v1
         with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_YELLOW_FOREST_051D3921E }}
           action: "close"
