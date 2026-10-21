@@ -24,6 +24,19 @@ fail() {
   fail_count=$((fail_count + 1))
 }
 
+mask_secrets_in_output() {
+  local input
+  input="$(cat)"
+
+  printf '%s\n' "$input" |
+    sed -E \
+      -e 's/(AKIA[0-9A-Z]{12,})[A-Za-z0-9/+=]{4,}/\1[REDACTED]/g' \
+      -e 's/(ghp_[A-Za-z0-9]{20,})[A-Za-z0-9]{4,}/\1[REDACTED]/g' \
+      -e 's/(xox[baprs]-[A-Za-z0-9-]{6,})[A-Za-z0-9-]{4,}/\1[REDACTED]/g' \
+      -e "s/(api[_-]?key[[:space:]]*[:=][[:space:]]*[\"']?)([A-Za-z0-9_\\-]{20,})([\"']?)/\1[REDACTED]\3/g" \
+      -e 's/(-----BEGIN (RSA|EC|OPENSSH|DSA|PRIVATE) KEY-----).*/\1 [REDACTED]/g'
+}
+
 check_control() {
   local repo_root="$1"
   local repo_label="$2"
@@ -83,7 +96,7 @@ secret_scan() {
 
   if [[ -n "$leak_output" ]]; then
     fail "$repo_label" "Potential credential leakage detected"
-    printf "%s\n" "$leak_output" | tee -a "$REPORT_FILE"
+    printf '%s\n' "$leak_output" | mask_secrets_in_output | tee -a "$REPORT_FILE"
   else
     pass "$repo_label" "No obvious credential leakage patterns detected"
   fi
